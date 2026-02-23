@@ -1,0 +1,128 @@
+import sys
+import math
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QColorDialog, QLabel, QComboBox, QSlider
+from PyQt5.QtCore import Qt
+from PyQt5.QtOpenGL import QGLWidget
+from OpenGL.GL import *
+from OpenGL.GLU import *
+
+class Cake3D(QGLWidget):
+    def __init__(self, parent=None):
+        super(Cake3D, self).__init__(parent)
+        self.rotationX = 30
+        self.rotationY = 30
+        self.shape = "Cylinder"
+        self.layers = 2
+        self.color = (1.0, 0.75, 0.8)  # pastel pink
+
+    def initializeGL(self):
+        glClearColor(1.0, 0.8, 0.9, 1.0)  # pink background
+        glEnable(GL_DEPTH_TEST)
+
+    def resizeGL(self, w, h):
+        glViewport(0, 0, w, h)
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        gluPerspective(45.0, w / h, 1.0, 100.0)
+        glMatrixMode(GL_MODELVIEW)
+
+    def paintGL(self):
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glLoadIdentity()
+        glTranslatef(0.0, 0.0, -6.0)
+        glRotatef(self.rotationX, 1.0, 0.0, 0.0)
+        glRotatef(self.rotationY, 0.0, 1.0, 0.0)
+
+        glColor3f(*self.color)
+
+        if self.shape == "Cylinder":
+            self.drawCylinder()
+        elif self.shape == "Rectangle":
+            self.drawCube()
+        elif self.shape == "Heart":
+            self.drawHeart()
+
+    def drawCylinder(self):
+        quad = gluNewQuadric()
+        for i in range(self.layers):
+            glPushMatrix()
+            glTranslatef(0, i * 0.5, 0)
+            gluCylinder(quad, 1.0, 1.0, 0.5, 32, 32)
+            glPopMatrix()
+
+    def drawCube(self):
+        for i in range(self.layers):
+            glPushMatrix()
+            glTranslatef(0, i * 0.5, 0)
+            glutSolidCube(1.5)
+            glPopMatrix()
+
+    def drawHeart(self):
+        # Simplified heart shape using polygon
+        glBegin(GL_POLYGON)
+        for angle in range(0, 360, 5):
+            rad = math.radians(angle)
+            x = 16 * math.sin(rad)**3 / 50
+            y = (13*math.cos(rad) - 5*math.cos(2*rad) - 2*math.cos(3*rad) - math.cos(4*rad)) / 50
+            glVertex3f(x, y, 0)
+        glEnd()
+
+    def mouseMoveEvent(self, event):
+        self.rotationX += event.y() * 0.1
+        self.rotationY += event.x() * 0.1
+        self.update()
+
+class CakeApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Pink Retro Cake Customizer")
+        self.setGeometry(100, 100, 800, 600)
+
+        self.cakeWidget = Cake3D(self)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.cakeWidget)
+
+        # Shape selection
+        self.shapeBox = QComboBox()
+        self.shapeBox.addItems(["Cylinder", "Heart", "Rectangle"])
+        self.shapeBox.currentTextChanged.connect(self.changeShape)
+        layout.addWidget(QLabel("Shape Selection"))
+        layout.addWidget(self.shapeBox)
+
+        # Layers
+        self.layerSlider = QSlider(Qt.Horizontal)
+        self.layerSlider.setRange(2, 3)
+        self.layerSlider.valueChanged.connect(self.changeLayers)
+        layout.addWidget(QLabel("Layers"))
+        layout.addWidget(self.layerSlider)
+
+        # Color Picker
+        colorBtn = QPushButton("Pick Cake Color")
+        colorBtn.clicked.connect(self.pickColor)
+        layout.addWidget(colorBtn)
+
+        container = QWidget()
+        container.setLayout(layout)
+        self.setCentralWidget(container)
+
+    def changeShape(self, shape):
+        self.cakeWidget.shape = shape
+        self.cakeWidget.update()
+
+    def changeLayers(self, layers):
+        self.cakeWidget.layers = layers
+        self.cakeWidget.update()
+
+    def pickColor(self):
+        color = QColorDialog.getColor()
+        if color.isValid():
+            r, g, b, _ = color.getRgbF()
+            self.cakeWidget.color = (r, g, b)
+            self.cakeWidget.update()
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = CakeApp()
+    window.show()
+    sys.exit(app.exec_())
